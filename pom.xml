@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" 
+  xmlns="http://maven.apache.org/POM/4.0.0" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.redhat.gdemo</groupId>
   <artifactId>gdemo-dmn-listener</artifactId>
@@ -9,6 +10,7 @@
   <description>Holds the DMN Listeners for the GDemo</description>
   <properties>
     <version.org.kie>7.23.0-SNAPSHOT</version.org.kie>
+    <version.io.prometheus>0.5.0</version.io.prometheus>
   </properties>
   <dependencies>
     <!-- KIE Dependencies -->
@@ -18,8 +20,33 @@
       <version>${version.org.kie}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.kie</groupId>
+      <artifactId>kie-dmn-api</artifactId>
+      <version>${version.org.kie}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.kie.server</groupId>
+      <artifactId>kie-server-services-common</artifactId>
+      <version>${version.org.kie}</version>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- Prometheus Dependencies -->
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient</artifactId>
+      <version>${version.io.prometheus}</version>
+    </dependency>
+    <!--
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_httpserver</artifactId>
+      <version>${version.io.prometheus}</version>
+    </dependency>
+    -->
+
   </dependencies>
   <build>
     <plugins>
