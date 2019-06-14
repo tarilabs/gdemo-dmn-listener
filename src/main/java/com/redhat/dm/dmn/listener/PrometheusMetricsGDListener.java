@@ -32,10 +32,14 @@ import org.kie.dmn.api.core.event.BeforeEvaluateDecisionEvent;
 import org.kie.dmn.api.core.event.BeforeEvaluateDecisionServiceEvent;
 import org.kie.dmn.api.core.event.BeforeEvaluateDecisionTableEvent;
 import org.kie.dmn.api.core.event.DMNRuntimeEventListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.prometheus.client.Histogram;
 
 public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PrometheusMetricsGDListener.class);
 
     private static final String CARD_HOLDER_RISK_RATING_DECISION = "Cardholder Risk Rating";
     private static final String DISPUTE_RISK_RATING_DECISION = "Dispute Risk Rating";
@@ -59,6 +63,7 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
         Histogram crr = null;
         try {
             crr = (Histogram) registry.service(CARD_HOLDER_RISK_RATING_COLLECTOR);
+            LOGGER.info("Using existing CardHolder Risk Rating Prometheus Historgram.");
         } catch (IllegalArgumentException iae) {
             //Collector is not in registry, so building a new one.
             crr = Histogram.build()
@@ -69,12 +74,14 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
                     .register();
 
             registry.register(CARD_HOLDER_RISK_RATING_COLLECTOR, crr);
+            LOGGER.info("New CardHolder Risk Rating Prometheus Historgram registered.");
         }
         cardholderRiskRating = crr;
 
         Histogram drr = null;
         try {
             drr = (Histogram) registry.service(DISPUTE_RISK_RATING_COLLECTOR);
+            LOGGER.info("Using existing Dispute Risk Rating Prometheus Historgram.");
         } catch (IllegalArgumentException iae) {
             //Collector is not in registry, so building a new one.
             drr = Histogram.build()
@@ -84,12 +91,14 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
                     .buckets(1, 2, 3, 4, 5)
                     .register();
             registry.register(DISPUTE_RISK_RATING_COLLECTOR, drr);
+            LOGGER.info("New Dispute Risk Rating Prometheus Historgram registered.");
         }
         disputeRiskRating = drr;
     
         Histogram par = null;
         try {
             par = (Histogram) registry.service(PROCESS_AUTOMATICALLY_RATING_COLLECTOR);
+            LOGGER.info("Using existing Process Automatically Rating Prometheus Historgram.");
         } catch (IllegalArgumentException iae) {
             //Collector is not in registry, so building a new one.
             par = Histogram.build()
@@ -98,7 +107,8 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
                     .labelNames("group_id", "artifact_id", "version", "decision_namespace", "decision_name")
                     .buckets(0, 1)
                     .register();
-            registry.register(DISPUTE_RISK_RATING_COLLECTOR, par);
+            registry.register(PROCESS_AUTOMATICALLY_RATING_COLLECTOR, par);
+            LOGGER.info("New Process Automatically Risk Rating Prometheus Historgram registered.");
         } 
         processAutomaticallyRating = par;
     }
@@ -114,18 +124,35 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
     @Override
     public void afterEvaluateDecision(AfterEvaluateDecisionEvent e) {
         DecisionNode decisionNode = e.getDecision();
-        DMNDecisionResult disputeRiskRating = e.getResult().getDecisionResultByName(DISPUTE_RISK_RATING_DECISION);
-        DMNDecisionResult cardholderRiskRating = e.getResult().getDecisionResultByName(CARD_HOLDER_RISK_RATING_DECISION);
-        DMNDecisionResult processAutomatically = e.getResult().getDecisionResultByName(PROCESS_AUTOMATICALLY_DECISION);
-        publishToPrometheus(getDisputeRiskRatingHistogram(), decisionNode, disputeRiskRating);
-        publishToPrometheus(getCardholderRiskRatingHistogram(), decisionNode, cardholderRiskRating);
-        publishToPrometheus(getProcessAutomaticallyRating(), decisionNode, processAutomatically);
+
+        String decisionNodeName = decisionNode.getName();
+        DMNDecisionResult result = e.getResult().getDecisionResultByName(decisionNodeName);
+        Histogram histogram; 
+        switch (decisionNodeName) {
+            case CARD_HOLDER_RISK_RATING_DECISION:
+                histogram = getCardholderRiskRatingHistogram();
+                break;
+            case DISPUTE_RISK_RATING_DECISION:
+                histogram = getDisputeRiskRatingHistogram();
+                break;
+            case PROCESS_AUTOMATICALLY_DECISION:
+                histogram = getProcessAutomaticallyRatingHistogram();
+                break;
+            default:
+                histogram = null;
+                LOGGER.info("Decision with name '" + decisionNodeName + "' discarded.");
+                break;
+        }
+        if (histogram != null) {
+            publishToPrometheus(histogram, decisionNode, result);    
+        }
     }
 
     void publishToPrometheus(Histogram histogram, DecisionNode decisionNode, DMNDecisionResult dmnDecisionResult) {
         if (dmnDecisionResult != null && !dmnDecisionResult.hasErrors()) {
             double result = 0;
             Object dmnResult = dmnDecisionResult.getResult();
+            LOGGER.info("Publishing result for '" + decisionNode.getName() + "' to Prometheus Histogram. Result is: ''" + dmnResult + "'.");
             if (dmnResult instanceof BigDecimal) {
                 BigDecimal bdScore = (BigDecimal) dmnDecisionResult.getResult();
                 result = bdScore.doubleValue();
@@ -146,7 +173,7 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
         return cardholderRiskRating;
     }
 
-    Histogram getProcessAutomaticallyRating() {
+    Histogram getProcessAutomaticallyRatingHistogram() {
         return processAutomaticallyRating;
     }
     private String[] buildLabels(String... dynamicLabels) {
