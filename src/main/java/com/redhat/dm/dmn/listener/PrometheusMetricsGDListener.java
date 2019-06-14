@@ -47,7 +47,7 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
 
     private static final String CARD_HOLDER_RISK_RATING_COLLECTOR = "CardHolderRisktRatingCollector";
     private static final String DISPUTE_RISK_RATING_COLLECTOR = "DisputeRiskRatingCollector";
-    private static final String PROCESS_AUTOMATICALLY_RATING_COLLECTOR = "DisputeRiskRatingCollector";
+    private static final String PROCESS_AUTOMATICALLY_RATING_COLLECTOR = "ProcessAutomaticallyRatingCollector";
 
     private static final Histogram disputeRiskRating;
 
@@ -108,7 +108,7 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
                     .buckets(0, 1)
                     .register();
             registry.register(PROCESS_AUTOMATICALLY_RATING_COLLECTOR, par);
-            LOGGER.info("New Process Automatically Risk Rating Prometheus Historgram registered.");
+            LOGGER.info("Test: New Process Automatically Risk Rating Prometheus Historgram registered.");
         } 
         processAutomaticallyRating = par;
     }
@@ -127,24 +127,20 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
 
         String decisionNodeName = decisionNode.getName();
         DMNDecisionResult result = e.getResult().getDecisionResultByName(decisionNodeName);
-        Histogram histogram; 
+        
         switch (decisionNodeName) {
             case CARD_HOLDER_RISK_RATING_DECISION:
-                histogram = getCardholderRiskRatingHistogram();
+                publishToPrometheus(getCardholderRiskRatingHistogram(), decisionNode, result);    
                 break;
             case DISPUTE_RISK_RATING_DECISION:
-                histogram = getDisputeRiskRatingHistogram();
+                publishToPrometheus(getDisputeRiskRatingHistogram(), decisionNode, result);    
                 break;
             case PROCESS_AUTOMATICALLY_DECISION:
-                histogram = getProcessAutomaticallyRatingHistogram();
+                publishToPrometheus(getProcessAutomaticallyRatingHistogram(), decisionNode, result);    
                 break;
             default:
-                histogram = null;
                 LOGGER.info("Decision with name '" + decisionNodeName + "' discarded.");
                 break;
-        }
-        if (histogram != null) {
-            publishToPrometheus(histogram, decisionNode, result);    
         }
     }
 
@@ -152,12 +148,14 @@ public class PrometheusMetricsGDListener implements DMNRuntimeEventListener {
         if (dmnDecisionResult != null && !dmnDecisionResult.hasErrors()) {
             double result = 0;
             Object dmnResult = dmnDecisionResult.getResult();
-            LOGGER.info("Publishing result for '" + decisionNode.getName() + "' to Prometheus Histogram. Result is: ''" + dmnResult + "'.");
+            LOGGER.info("Publishing result for '" + decisionNode.getName() + "' to Prometheus Histogram. Result is: '" + dmnResult + "'.");
             if (dmnResult instanceof BigDecimal) {
-                BigDecimal bdScore = (BigDecimal) dmnDecisionResult.getResult();
+                LOGGER.info("Sending BigDecimal result to Prometheus.");
+                BigDecimal bdScore = (BigDecimal) dmnResult;
                 result = bdScore.doubleValue();
             } else if (dmnResult instanceof Boolean) {
-                Boolean bScore = (Boolean) dmnDecisionResult.getResult();
+                LOGGER.info("Sending Boolean result to Prometheus.");
+                Boolean bScore = (Boolean) dmnResult;
                 result = bScore.booleanValue() ? 1 : 0;
             }
 
